@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@babel/generator": "^7.28.3",
+    "@babel/traverse": "^7.28.3",
+    "acorn": "^8.15.0",
+    "commander": "^14.0.0",
+    "estree-to-babel": "^11.0.3",
+    "glob": "^11.0.3",
+    "mkdirp": "^3.0.1"
+  }
+}
