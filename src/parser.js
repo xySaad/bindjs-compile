@@ -1,34 +1,24 @@
-import { Parser, TokenType, defaultOptions } from "acorn";
+import { Parser, defaultOptions, tokTypes } from "acorn";
 import { estreeToBabel } from "estree-to-babel";
-const { keywordTypes } = Parser.acorn;
-const kw = (n) => (keywordTypes[n] = new TokenType(n, {}));
+import JSX from "acorn-jsx";
 export const types = {
-  state: kw("state"),
-  list: kw("list"),
+  state: null,
+  list: null,
 };
 
 function rbind(ParentParser) {
   return class extends ParentParser {
-    parse(program) {
-      const existing = this.keywords.source;
-      const newWords = existing.replace("const", "const|state|list");
-      const newRegex = new RegExp(newWords);
-      this.keywords = newRegex;
-      return super.parse(program);
-    }
     parseStatement(context, topLevel, exports) {
+      // parse state and list declarations
       const node = this.startNode();
-      switch (this.type) {
-        case types.state:
-        case types.list:
-          return this.parseVarStatement(node, this.type.label);
-        default:
-          return super.parseStatement(context, topLevel, exports);
+      if (this.type == tokTypes.name && this.value in types) {
+        return this.parseVarStatement(node, this.value);
       }
+      return super.parseStatement(context, topLevel, exports);
     }
   };
 }
 
 export default function (code, options = defaultOptions) {
-  return estreeToBabel(Parser.extend(rbind).parse(code, options));
+  return estreeToBabel(Parser.extend(JSX(), rbind).parse(code, options));
 }

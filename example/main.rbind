@@ -1,2 +1,14 @@
-list users = [{name: "john"}];
-state error = false
+state chat = {
+  room: "general",
+  id: 5,
+  list$chat: [
+    {
+      user: "alice",
+      online: false,
+    },
+    {
+      user: "bob",
+      online: false,
+    },
+  ],
+};
