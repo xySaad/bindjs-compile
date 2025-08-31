@@ -13,10 +13,29 @@ import {
   createTextNode,
   setAttribute,
 } from "./jsx.js";
+const match = (pattern, ...list) => {
+  if (list.includes(pattern)) {
+    return true;
+  }
+  return false;
+};
 
 /** @returns {import("@babel/traverse").Visitor} */
 export default function () {
   return {
+    CallExpression(path) {
+      const { callee } = path.node;
+      if (callee.type !== "MemberExpression") {
+        return;
+      }
+      const binding = path.scope.getBinding(callee.object.name);
+      if (!binding?.identifier?.extra?.reactive) {
+        return;
+      }
+      if (callee.property.name !== "map") {
+        return;
+      }
+    },
     JSXElement(path) {
       const handler = (node) => {
         const jsx = node;
@@ -29,30 +48,35 @@ export default function () {
 
         jsx.openingElement?.attributes.forEach((attr) => {
           if (attr.type === "JSXSpreadAttribute") {
+            console.error("JSXSpreadAttribute not imlemented");
             return;
           }
-          where.insertBefore(setAttribute(el, attr.name.name, attr.value));
+          where.insertBefore(setAttribute(el, attr, where));
         });
 
         const fragID = path.scope.generateUidIdentifier("frag");
 
         const frag = createFragment(where, fragID);
-
         jsx.children?.forEach((child) => {
-          switch (child.type) {
-            case "JSXElement":
-              const childEl = handler(child);
-              frag.append(childEl);
-              break;
-            case "JSXExpressionContainer":
-            case "JSXText":
-              const textNodeID = path.scope.generateUidIdentifier("textNode");
-              const text = child.expression ?? stringLiteral(child.value);
-              createTextNode(where, textNodeID, text);
-              frag.append(textNodeID);
-              break;
-            default:
-              throw new Error(`Unexpected jsx child type ${child.type}`);
+          if (child.type === "JSXElement") {
+            const childEl = handler(child);
+            frag.append(childEl);
+          } else if (match(child.type, "JSXExpressionContainer", "JSXText")) {
+            const textNodeID = path.scope.generateUidIdentifier("textNode");
+            let text = child.expression; //JSXExpressionContainer
+            if (child.type === "JSXText") {
+              const trimed = child.value.trim();
+              if (!trimed.length) {
+                return;
+              }
+              text = stringLiteral(trimed);
+            }
+            if (text.type === "JSXEmptyExpression") {
+              return;
+            }
+
+            createTextNode(where, textNodeID, text);
+            frag.append(textNodeID);
           }
         });
 
@@ -67,11 +91,11 @@ export default function () {
     ObjectProperty({ node }) {
       const { name, value } = node.key;
 
-      for (const type in types) {
-        const prefix = `${type}$`;
+      for (const kind in types) {
+        const prefix = `${kind}$`;
         if ((name ?? value).startsWith(prefix)) {
           node.key.name = name.substring(prefix.length);
-          node.value = callExpression(identifier(type), [node.value]);
+          node.value = callExpression(identifier(kind), [node.value]);
         }
       }
     },
@@ -80,6 +104,7 @@ export default function () {
       const { kind, declarations } = node;
       if (kind in types) {
         declarations.forEach((d) => {
+          d.id.extra = { ...d.id.extra, reactive: { kind } };
           d.init = callExpression(identifier(kind), [d.init]);
         });
         node.kind = "const";

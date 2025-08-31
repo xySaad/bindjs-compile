@@ -52,7 +52,7 @@ const Button = ([id, text, fn]) => (
       id={id}
       class="btn btn-primary btn-block"
       type="button"
-      onClick={fn}
+      onclick={fn}
     >
       {text}
     </button>
@@ -81,16 +81,15 @@ export const App = () => (
     <table class="table table-hover table-striped test-data">
       <tbody>
         {data.map((row, idx) => {
-          // mark that label and other_prop are properties of row and are of type state
-          // decend {label, other_prop}
           return (
             <tr class={selected == row.id ? "danger" : ""}>
               <td class="col-md-1">{row.id}</td>
               <td class="col-md-4">
-                <a onClick={() => (selected = row.id)}>{row.label}</a>
+                {/* <a onclick={() => (selected = row.id)}>{#row.label}</a> */}
+                <a onclick={() => (selected = row.id)}>{row.label}</a>
               </td>
               <td class="col-md-1">
-                <a onClick={() => data.remove(idx())}>
+                <a onclick={() => data.remove(idx())}>
                   <span class="glyphicon glyphicon-remove" aria-hidden="true" />
                 </a>
               </td>

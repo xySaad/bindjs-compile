@@ -1,8 +1,13 @@
 import {
+  arrowFunctionExpression,
+  blockStatement,
   callExpression,
+  expressionStatement,
   identifier,
+  isFunction,
   memberExpression,
   stringLiteral,
+  traverse,
   variableDeclaration,
   variableDeclarator,
 } from "@babel/types";
@@ -19,18 +24,48 @@ export const createElement = (node) => {
 
   return methodCall;
 };
-export const setAttribute = (el, name, value) => {
-  //#1  _el.setAttribute
-  const method = memberExpression(el, identifier("setAttribute"));
+export const setAttribute = (el, attr, path) => {
+  const name = attr.name.name;
+  let value = attr.value;
 
-  if (value.type == "JSXExpressionContainer") {
-    value = value.expression.name
-      ? identifier(value.expression.name)
-      : value.expression;
+  // Normalize JSXExpressionContainer
+  if (value?.type === "JSXExpressionContainer") {
+    value = value.expression;
   }
 
-  //#2 #1(attr, value)
+  // Initial setter: _el.setAttribute("class", value)
+  const method = memberExpression(el, identifier("setAttribute"));
   const methodCall = callExpression(method, [stringLiteral(name), value]);
+  if (isFunction(value)) {
+    return methodCall;
+  }
+  path.scope.traverse(value, {
+    Identifier(idPath) {
+      const binding = idPath.scope.getBinding(idPath.node.name);
+      if (!binding?.identifier?.extra?.reactive) return;
+
+      // Wrap setter into a trigger function
+      const trigger = arrowFunctionExpression(
+        [],
+        blockStatement([
+          expressionStatement(
+            callExpression(method, [stringLiteral(name), value])
+          ),
+        ])
+      );
+
+      const registerTrigger = expressionStatement(
+        callExpression(
+          memberExpression(binding.identifier, identifier("register")),
+          [trigger]
+        )
+      );
+
+      // Insert after the setter
+      path.insertBefore(registerTrigger);
+    },
+  });
+
   return methodCall;
 };
 
