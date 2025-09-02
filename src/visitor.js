@@ -22,6 +22,20 @@ const match = (pattern, ...list) => {
 /** @returns {import("@babel/traverse").Visitor} */
 export default function () {
   return {
+    Identifier(path) {
+      const binding = path.scope.getBinding(path.node.name);
+      if (
+        binding?.path.node.id?.extra?.reactive &&
+        path.parent.type !== "VariableDeclarator" &&
+        path.parent.type !== "ObjectProperty" &&
+        !path.node.extra?.skipReactiveGetter
+      ) {
+        path.node.extra = { ...path.node.extra, skipReactiveGetter: true };
+        const expr = memberExpression(path.node, identifier("value"));
+        path.replaceWith(expr);
+        path.skip();
+      }
+    },
     CallExpression(path) {
       const { callee } = path.node;
       if (callee.type !== "MemberExpression") {

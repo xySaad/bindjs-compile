@@ -52,7 +52,10 @@ export const setAttribute = (el, attr, path) => {
         ),
       ])
     );
-
+    binding.identifier.extra = {
+      ...binding.identifier.extra,
+      skipReactiveGetter: true,
+    };
     const registerTrigger = expressionStatement(
       callExpression(
         memberExpression(binding.identifier, identifier("register")),
