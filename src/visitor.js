@@ -6,7 +6,6 @@ import {
   VariableDeclaration,
 } from "@babel/types";
 import { NodePath } from "@babel/traverse";
-import { types } from "./parser.js";
 import {
   createElement,
   createFragment,
@@ -91,21 +90,24 @@ export default function () {
     ObjectProperty({ node }) {
       const { name, value } = node.key;
 
-      for (const kind in types) {
-        const prefix = `${kind}$`;
-        if ((name ?? value).startsWith(prefix)) {
-          node.key.name = name.substring(prefix.length);
-          node.value = callExpression(identifier(kind), [node.value]);
-        }
+      const prefix = `ref$`;
+      if (node.key.name.length <= prefix.length) {
+        return;
+      }
+      if ((name ?? value).startsWith(prefix)) {
+        node.key.name = name.substring(prefix.length);
+        const callee = node.value.type === "ArrayExpression" ? "list" : "state";
+        node.value = callExpression(identifier(callee), [node.value]);
       }
     },
     /** @argument {NodePath<VariableDeclaration>} path */
     VariableDeclaration({ node }) {
       const { kind, declarations } = node;
-      if (kind in types) {
+      if (kind === "ref") {
         declarations.forEach((d) => {
+          const callee = d.init.type === "ArrayExpression" ? "list" : "state";
           d.id.extra = { ...d.id.extra, reactive: { kind } };
-          d.init = callExpression(identifier(kind), [d.init]);
+          d.init = callExpression(identifier(callee), [d.init]);
         });
         node.kind = "const";
       }

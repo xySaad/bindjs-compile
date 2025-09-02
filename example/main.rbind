@@ -12,16 +12,16 @@ const buildData = (count) => {
   let data = Array.from({ length: count });
 
   for (let i = 0; i < count; i++) {
-    state label = `${adjectives[random(adjectives.length)]} ${colors[random(colors.length)]} ${nouns[random(nouns.length)]}`
+    ref label = `${adjectives[random(adjectives.length)]} ${colors[random(colors.length)]} ${nouns[random(nouns.length)]}`
 
     data[i] = { id: nextId++, label };
   }
 
   return data;
 };
-list data = [];
+ref data = [];
 
-state selected = null;
+ref selected = null;
 
 const run = () => {
   data = [...buildData(1_000)];
