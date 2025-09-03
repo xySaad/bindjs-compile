@@ -24,9 +24,12 @@ export default function () {
   return {
     Identifier(path) {
       const binding = path.scope.getBinding(path.node.name);
+      const isVariableInit =
+        path.parent.id === path.node &&
+        path.parent.type === "VariableDeclarator";
       if (
         binding?.path.node.id?.extra?.reactive &&
-        path.parent.type !== "VariableDeclarator" &&
+        !isVariableInit &&
         path.parent.type !== "ObjectProperty" &&
         !path.node.extra?.skipReactiveGetter
       ) {

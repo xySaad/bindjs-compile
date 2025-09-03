@@ -29,7 +29,7 @@ const runLots = () => {
 };
 const add = () => data.value = [data.value, ...buildData(1000)];
 const update = () => {
-  for (let i = 0, d = data, len = d.length; i < len; i += 10) {
+  for (let i = 0, d = data.value, len = d.length; i < len; i += 10) {
     d[i].label += " !!!";
   }
 };
