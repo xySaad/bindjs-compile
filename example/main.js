@@ -68,14 +68,8 @@ export const App = () => {
     _el7 = document.createElement("h1"),
     _el8 = document.createElement("div"),
     _el9 = document.createElement("div"),
-    _el0 = document.createElement("Button"),
-    _el1 = document.createElement("Button"),
-    _el10 = document.createElement("Button"),
-    _el11 = document.createElement("Button"),
-    _el12 = document.createElement("Button"),
-    _el13 = document.createElement("Button"),
-    _el14 = document.createElement("table"),
-    _el15 = document.createElement("tbody");
+    _el0 = document.createElement("table"),
+    _el1 = document.createElement("tbody");
   _el3.setAttribute("class", "container")
   const _frag3 = document.createDocumentFragment();
   _el4.setAttribute("class", "jumbotron")
@@ -95,42 +89,12 @@ export const App = () => {
   const _frag8 = document.createDocumentFragment();
   _el9.setAttribute("class", "row")
   const _frag9 = document.createDocumentFragment();
-  _el0.setAttribute("id", "run")
-  _el0.setAttribute("text", "Create 1,000 rows")
-  _el0.setAttribute("fn", run)
-  const _frag0 = document.createDocumentFragment();
-  _el0.append(_frag0)
-  _frag9.append(_el0)
-  _el1.setAttribute("id", "runlots")
-  _el1.setAttribute("text", "Create 10,000 rows")
-  _el1.setAttribute("fn", runLots)
-  const _frag1 = document.createDocumentFragment();
-  _el1.append(_frag1)
-  _frag9.append(_el1)
-  _el10.setAttribute("id", "add")
-  _el10.setAttribute("text", "Append 1,000 rows")
-  _el10.setAttribute("fn", add)
-  const _frag10 = document.createDocumentFragment();
-  _el10.append(_frag10)
-  _frag9.append(_el10)
-  _el11.setAttribute("id", "update")
-  _el11.setAttribute("text", "Update every 10th row")
-  _el11.setAttribute("fn", update)
-  const _frag11 = document.createDocumentFragment();
-  _el11.append(_frag11)
-  _frag9.append(_el11)
-  _el12.setAttribute("id", "clear")
-  _el12.setAttribute("text", "Clear")
-  _el12.setAttribute("fn", clear)
-  const _frag12 = document.createDocumentFragment();
-  _el12.append(_frag12)
-  _frag9.append(_el12)
-  _el13.setAttribute("id", "swaprows")
-  _el13.setAttribute("text", "Swap Rows")
-  _el13.setAttribute("fn", swapRows)
-  const _frag13 = document.createDocumentFragment();
-  _el13.append(_frag13)
-  _frag9.append(_el13)
+  _frag9.append(Button(["run", "Create 1,000 rows", run]))
+  _frag9.append(Button(["runlots", "Create 10,000 rows", runLots]))
+  _frag9.append(Button(["add", "Append 1,000 rows", add]))
+  _frag9.append(Button(["update", "Update every 10th row", update]))
+  _frag9.append(Button(["clear", "Clear", clear]))
+  _frag9.append(Button(["swaprows", "Swap Rows", swapRows]))
   _el9.append(_frag9)
   _frag8.append(_el9)
   _el8.append(_frag8)
@@ -139,64 +103,64 @@ export const App = () => {
   _frag4.append(_el5)
   _el4.append(_frag4)
   _frag3.append(_el4)
-  _el14.setAttribute("class", "table table-hover table-striped test-data")
-  const _frag14 = document.createDocumentFragment();
-  const _frag15 = document.createDocumentFragment();
+  _el0.setAttribute("class", "table table-hover table-striped test-data")
+  const _frag0 = document.createDocumentFragment();
+  const _frag1 = document.createDocumentFragment();
   const _textNode25 = document.createTextNode(data.map((row, idx) => {
-    const _el16 = document.createElement("tr"),
-      _el17 = document.createElement("td"),
-      _el18 = document.createElement("td"),
-      _el19 = document.createElement("a"),
-      _el20 = document.createElement("td"),
-      _el21 = document.createElement("a"),
-      _el22 = document.createElement("span"),
-      _el23 = document.createElement("td");
+    const _el10 = document.createElement("tr"),
+      _el11 = document.createElement("td"),
+      _el12 = document.createElement("td"),
+      _el13 = document.createElement("a"),
+      _el14 = document.createElement("td"),
+      _el15 = document.createElement("a"),
+      _el16 = document.createElement("span"),
+      _el17 = document.createElement("td");
     selected.register(() => {
-      _el16.setAttribute("class", selected.value == row.id ? "danger" : "");
+      _el10.setAttribute("class", selected.value == row.id ? "danger" : "");
     });
-    _el16.setAttribute("class", selected.value == row.id ? "danger" : "")
-    const _frag16 = document.createDocumentFragment();
-    _el17.setAttribute("class", "col-md-1")
-    const _frag17 = document.createDocumentFragment();
+    _el10.setAttribute("class", selected.value == row.id ? "danger" : "")
+    const _frag10 = document.createDocumentFragment();
+    _el11.setAttribute("class", "col-md-1")
+    const _frag11 = document.createDocumentFragment();
     const _textNode30 = document.createTextNode(row.id);
-    _frag17.append(_textNode30)
-    _el17.append(_frag17)
-    _frag16.append(_el17)
-    _el18.setAttribute("class", "col-md-4")
-    const _frag18 = document.createDocumentFragment();
-    _el19.setAttribute("onclick", () => selected.value = row.id)
-    const _frag19 = document.createDocumentFragment();
+    _frag11.append(_textNode30)
+    _el11.append(_frag11)
+    _frag10.append(_el11)
+    _el12.setAttribute("class", "col-md-4")
+    const _frag12 = document.createDocumentFragment();
+    _el13.setAttribute("onclick", () => selected.value = row.id)
+    const _frag13 = document.createDocumentFragment();
     const _textNode35 = document.createTextNode(row.label);
-    _frag19.append(_textNode35)
-    _el19.append(_frag19)
-    _frag18.append(_el19)
-    _el18.append(_frag18)
-    _frag16.append(_el18)
-    _el20.setAttribute("class", "col-md-1")
-    const _frag20 = document.createDocumentFragment();
-    _el21.setAttribute("onclick", () => data.remove(idx()))
-    const _frag21 = document.createDocumentFragment();
-    _el22.setAttribute("class", "glyphicon glyphicon-remove")
-    _el22.setAttribute("aria-hidden", "true")
-    const _frag22 = document.createDocumentFragment();
-    _el22.append(_frag22)
-    _frag21.append(_el22)
-    _el21.append(_frag21)
-    _frag20.append(_el21)
-    _el20.append(_frag20)
-    _frag16.append(_el20)
-    _el23.setAttribute("class", "col-md-6")
-    const _frag23 = document.createDocumentFragment();
-    _el23.append(_frag23)
-    _frag16.append(_el23)
+    _frag13.append(_textNode35)
+    _el13.append(_frag13)
+    _frag12.append(_el13)
+    _el12.append(_frag12)
+    _frag10.append(_el12)
+    _el14.setAttribute("class", "col-md-1")
+    const _frag14 = document.createDocumentFragment();
+    _el15.setAttribute("onclick", () => data.remove(idx()))
+    const _frag15 = document.createDocumentFragment();
+    _el16.setAttribute("class", "glyphicon glyphicon-remove")
+    _el16.setAttribute("aria-hidden", "true")
+    const _frag16 = document.createDocumentFragment();
     _el16.append(_frag16)
-    return _el16;
+    _frag15.append(_el16)
+    _el15.append(_frag15)
+    _frag14.append(_el15)
+    _el14.append(_frag14)
+    _frag10.append(_el14)
+    _el17.setAttribute("class", "col-md-6")
+    const _frag17 = document.createDocumentFragment();
+    _el17.append(_frag17)
+    _frag10.append(_el17)
+    _el10.append(_frag10)
+    return _el10;
   }));
-  _frag15.append(_textNode25)
-  _el15.append(_frag15)
-  _frag14.append(_el15)
-  _el14.append(_frag14)
-  _frag3.append(_el14)
+  _frag1.append(_textNode25)
+  _el1.append(_frag1)
+  _frag0.append(_el1)
+  _el0.append(_frag0)
+  _frag3.append(_el0)
   _el3.append(_frag3)
   return _el3;
 };

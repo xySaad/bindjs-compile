@@ -14,6 +14,7 @@ import {
   setAttribute,
 } from "./jsx.js";
 import { convertMethods } from "./listMethods.js";
+import html from "./html.js";
 const match = (pattern, ...list) => {
   if (list.includes(pattern)) {
     return true;
@@ -85,6 +86,21 @@ export default function () {
     JSXElement(path) {
       const handler = (node) => {
         const jsx = node;
+        const tag = node.openingElement.name.name;
+
+        if (!html.has(tag)) {
+          const args = jsx.openingElement?.attributes?.map((a) => {
+            if (a.type === "JSXSpreadAttribute") {
+              return a.argument;
+            }
+            if (a.value?.type === "JSXExpressionContainer")
+              return a.value.expression;
+            return a.value;
+          });
+          const expression = callExpression(identifier(tag), [...args]);
+          path.replaceWith(expression);
+          return expression;
+        }
         const el = path.scope.generateUidIdentifier("el");
         const expression = createElement(jsx);
         path.scope.push({ id: el, init: expression, kind: "const" });
