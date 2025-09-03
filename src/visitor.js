@@ -1,6 +1,7 @@
 import {
   callExpression,
   identifier,
+  isArrayExpression,
   memberExpression,
   stringLiteral,
   VariableDeclaration,
@@ -12,6 +13,7 @@ import {
   createTextNode,
   setAttribute,
 } from "./jsx.js";
+import { convertMethods } from "./listMethods.js";
 const match = (pattern, ...list) => {
   if (list.includes(pattern)) {
     return true;
@@ -27,12 +29,40 @@ export default function () {
       const isVariableInit =
         path.parent.id === path.node &&
         path.parent.type === "VariableDeclarator";
+      const isList = binding?.path.node.id?.extra?.reactive.kind === "list";
+      const isListMethod =
+        path.parentPath.parent.type === "CallExpression" &&
+        path.parent.type === "MemberExpression";
+
       if (
         binding?.path.node.id?.extra?.reactive &&
         !isVariableInit &&
         path.parent.type !== "ObjectProperty" &&
-        !path.node.extra?.skipReactiveGetter
+        !path.node.extra?.skipReactiveGetter &&
+        !isListMethod
       ) {
+        // handle list setter
+        if (
+          path.parent.type === "AssignmentExpression" &&
+          path.parent.left === path.node &&
+          isList
+        ) {
+          convertMethods(path);
+          return;
+        }
+        //case: data[n] = "foo" => data.set(n, "foo")
+        if (
+          path.parent.type === "MemberExpression" &&
+          path.parent.computed &&
+          path.parentPath.parent.type === "AssignmentExpression"
+        ) {
+          const setter = callExpression(
+            memberExpression(path.node, identifier("set")),
+            [path.parent.property, path.parentPath.parent.right]
+          );
+          path.parentPath.parentPath.replaceWith(setter);
+          return;
+        }
         path.node.extra = { ...path.node.extra, skipReactiveGetter: true };
         const expr = memberExpression(path.node, identifier("value"));
         path.replaceWith(expr);
@@ -123,7 +153,7 @@ export default function () {
       if (kind === "ref") {
         declarations.forEach((d) => {
           const callee = d.init.type === "ArrayExpression" ? "list" : "state";
-          d.id.extra = { ...d.id.extra, reactive: { kind } };
+          d.id.extra = { ...d.id.extra, reactive: { kind: callee } };
           d.init = callExpression(identifier(callee), [d.init]);
         });
         node.kind = "const";

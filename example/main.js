@@ -19,7 +19,7 @@ const buildData = count => {
 const data = list([]);
 const selected = state(null);
 const clear = () => {
-  data.value = [];
+  data.clear();
 };
 const run = () => {
   data.value = [...buildData(1000)];
@@ -37,9 +37,9 @@ const swapRows = () => {
   if (data.value.length > 998) {
     const first = data.value[1];
     const _998 = data.value[998];
-    data.value.batch(() => {
-      data.value[1] = _998;
-      data.value[998] = first;
+    data.batch(() => {
+      data.set(1, _998);
+      data.set(998, first);
     });
   }
 };
@@ -142,7 +142,7 @@ export const App = () => {
   _el14.setAttribute("class", "table table-hover table-striped test-data")
   const _frag14 = document.createDocumentFragment();
   const _frag15 = document.createDocumentFragment();
-  const _textNode25 = document.createTextNode(data.value.map((row, idx) => {
+  const _textNode25 = document.createTextNode(data.map((row, idx) => {
     const _el16 = document.createElement("tr"),
       _el17 = document.createElement("td"),
       _el18 = document.createElement("td"),
@@ -174,7 +174,7 @@ export const App = () => {
     _frag16.append(_el18)
     _el20.setAttribute("class", "col-md-1")
     const _frag20 = document.createDocumentFragment();
-    _el21.setAttribute("onclick", () => data.value.remove(idx()))
+    _el21.setAttribute("onclick", () => data.remove(idx()))
     const _frag21 = document.createDocumentFragment();
     _el22.setAttribute("class", "glyphicon glyphicon-remove")
     _el22.setAttribute("aria-hidden", "true")
