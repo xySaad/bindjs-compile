@@ -1,6 +1,8 @@
 import {
   callExpression,
   identifier,
+  importDeclaration,
+  importSpecifier,
   isArrayExpression,
   memberExpression,
   stringLiteral,
@@ -24,7 +26,39 @@ const match = (pattern, ...list) => {
 
 /** @returns {import("@babel/traverse").Visitor} */
 export default function () {
+  let refImports = {
+    list: false,
+    state: false,
+  };
+
   return {
+    Program: {
+      enter(path) {
+        // Reset flags at the start of the program
+        refImports.list = false;
+        refImports.state = false;
+      },
+      exit(path) {
+        // Add import statement if list or state was used
+        if (!refImports.list && !refImports.state) return;
+        const specifiers = [];
+        if (refImports.list) {
+          specifiers.push(
+            importSpecifier(identifier("list"), identifier("list"))
+          );
+        }
+        if (refImports.state) {
+          specifiers.push(
+            importSpecifier(identifier("state"), identifier("state"))
+          );
+        }
+        const importDecl = importDeclaration(
+          specifiers,
+          stringLiteral("rbind")
+        );
+        path.node.body.unshift(importDecl);
+      },
+    },
     Identifier(path) {
       const binding = path.scope.getBinding(path.node.name);
       const isVariableInit =
@@ -160,6 +194,7 @@ export default function () {
       if ((name ?? value).startsWith(prefix)) {
         node.key.name = name.substring(prefix.length);
         const callee = node.value.type === "ArrayExpression" ? "list" : "state";
+        refImports[callee] = true;
         node.value = callExpression(identifier(callee), [node.value]);
       }
     },
@@ -171,6 +206,7 @@ export default function () {
           const callee = d.init.type === "ArrayExpression" ? "list" : "state";
           d.id.extra = { ...d.id.extra, reactive: { kind: callee } };
           d.init = callExpression(identifier(callee), [d.init]);
+          refImports[callee] = true;
         });
         node.kind = "const";
       }
