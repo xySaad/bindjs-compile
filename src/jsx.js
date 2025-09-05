@@ -1,3 +1,5 @@
+import { NodePath } from "@babel/traverse";
+import t from "@babel/types";
 import {
   arrowFunctionExpression,
   assignmentExpression,
@@ -5,14 +7,13 @@ import {
   callExpression,
   expressionStatement,
   identifier,
-  isFunction,
   memberExpression,
   stringLiteral,
   variableDeclaration,
   variableDeclarator,
 } from "@babel/types";
 
-/** @param {NodePath<JSXElement>} path */
+/** @param {NodePath<t.JSXElement>} node */
 export const createElement = (node) => {
   const tag = node.openingElement.name.name;
 
@@ -35,22 +36,19 @@ export const setAttribute = (el, attr, path) => {
 
   // Initial setter: _el.setAttribute("name", value)
   const method = memberExpression(el, identifier("setAttribute"));
-  const methodCall = callExpression(method, [stringLiteral(name), value]);
-
-  // If value is a function, return the method call as is
-  if (isFunction(value)) {
-    return methodCall;
+  let methodCall = callExpression(method, [stringLiteral(name), value]);
+  if (name.startsWith("on")) {
+    methodCall = assignmentExpression(
+      "=",
+      memberExpression(el, identifier(name)),
+      value
+    );
   }
-
   // Helper function to create and register a trigger
   const registerReactiveTrigger = (binding) => {
     const trigger = arrowFunctionExpression(
       [],
-      blockStatement([
-        expressionStatement(
-          callExpression(method, [stringLiteral(name), value])
-        ),
-      ])
+      blockStatement([expressionStatement(methodCall)])
     );
     binding.identifier.extra = {
       ...binding.identifier.extra,
@@ -72,7 +70,7 @@ export const setAttribute = (el, attr, path) => {
     if (binding?.identifier?.extra?.reactive) {
       registerReactiveTrigger(binding);
     }
-  } else {
+  } else if (value.type === "ConditionalExpression") {
     // Handle complex expressions by traversing for reactive identifiers
     path.scope.traverse(value, {
       Identifier(idPath) {
