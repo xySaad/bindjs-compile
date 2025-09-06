@@ -15,15 +15,19 @@ import {
   Program,
   Identifier,
   VariableDeclarator,
+  JSXElement,
+  nullLiteral,
 } from "@babel/types";
 import { NodePath } from "@babel/traverse";
 import {
   createElement,
   createFragment,
   createTextNode,
-  setAttribute,
+  setAttributes,
 } from "./jsx.js";
 import html from "./html.js";
+import { scope } from "@babel/traverse/lib/cache.js";
+import { getReactiveKind, markeComputedFunctions } from "./ref.js";
 export class RbindVisitor {
   refPrefix = "ref$";
   refImports = { list: false, state: false };
@@ -111,15 +115,8 @@ export class RbindVisitor {
 
   /** @argument {NodePath<Identifier>} path*/
   Identifier(path) {
-    const { node, parent } = path;
-    const binding = path.scope.getBinding(node.name);
-    const kind = binding?.identifier.extra?.reactive.kind;
+    const kind = getReactiveKind(path);
     if (!kind) return;
-
-    // skip variable declaration
-    // example: ref users = []; shouldn't be converted to ref users.value = [];
-    if (parent.type === "VariableDeclarator" && parent.id === path.node) return;
-
     // simply add .value
     if (kind === "state") {
       this.useDotValue(path);
@@ -131,12 +128,14 @@ export class RbindVisitor {
       this.compileReactiveList(path);
       return;
     }
+
     throw new Error(`kind ${kind} not implemented yet`);
   }
 
   // convert Identifier x into x.value
   useDotValue(path) {
-    // path.node.extra = { ...path.node.extra, skipReactiveGetter: true };
+    if (path.node.extra?.visited) return;
+    path.node.extra = { ...path.node.extra, visited: true };
     const expr = memberExpression(path.node, identifier("value"));
     path.replaceWith(expr);
     path.skip();
@@ -193,6 +192,27 @@ export class RbindVisitor {
     path.replaceWith(call);
     path.skip();
   }
+
+  JSXElement = {
+    /** @param {NodePath<JSXElement>} path*/
+    enter(path) {
+      const opening = path.node.openingElement;
+      const { name, attributes } = opening;
+      //TODO: handle name as JSXMemberExpression and JSXNamespacedName
+      if (name.type !== "JSXIdentifier")
+        throw new Error(`tagName type ${name.type} unimplemented`);
+      const tag = name.name;
+      const statementParent = path.getStatementParent();
+      const elID = path.scope.generateUidIdentifier(tag);
+      statementParent.insertBefore([
+        createElement(elID, tag),
+        ...setAttributes(path, elID, attributes),
+      ]);
+    },
+    exit(path) {
+      path.remove();
+    },
+  };
 }
 
 export default function () {
@@ -202,137 +222,29 @@ export default function () {
     Identifier(path) {
       visitor.Identifier(path);
     },
-    // JSXElement(path) {
-    //   const handler = (node) => {
-    //     const jsx = node;
-    //     const tag = node.openingElement.name.name;
-    //     if (!html.has(tag)) {
-    //       const args = jsx.openingElement?.attributes?.map((a) => {
-    //         if (a.type === "JSXSpreadAttribute") {
-    //           return a.argument;
-    //         }
-    //         if (a.value?.type === "JSXExpressionContainer")
-    //           return a.value.expression;
-    //         return a.value;
-    //       });
-
-    //       const expression = callExpression(identifier(tag), [...args]);
-    //       path.replaceWith(expression);
-    //       path.skip();
-    //       return expression;
-    //     }
-    //     const el = path.scope.generateUidIdentifier("el");
-    //     const expression = createElement(jsx);
-    //     path.scope.push({ id: el, init: expression, kind: "const" });
-    //     const where = path.getStatementParent();
-
-    //     jsx.openingElement?.attributes.forEach((attr) => {
-    //       where.insertBefore(setAttribute(el, attr, where, jsx));
-    //     });
-
-    //     const fragID = path.scope.generateUidIdentifier("frag");
-
-    //     const frag = createFragment(where, fragID);
-    //     jsx.children?.forEach((child) => {
-    //       if (child.type === "JSXElement") {
-    //         const childEl = handler(child);
-    //         frag.append(childEl);
-    //       } else if (child.type === "JSXText") {
-    //         const textNodeID = path.scope.generateUidIdentifier("textNode");
-    //         const trimed = child.value.trim();
-    //         if (!trimed.length) {
-    //           return;
-    //         }
-    //         const text = stringLiteral(trimed);
-    //         createTextNode(where, textNodeID, text);
-    //         frag.append(textNodeID);
-    //       } else if (child.type === "JSXExpressionContainer") {
-    //         if (child.expression.type === "JSXEmptyExpression") return;
-    //         if (child.expression.type === "Identifier") {
-    //           const textNodeID = path.scope.generateUidIdentifier("textNode");
-    //           createTextNode(where, textNodeID, child.expression);
-    //           frag.append(textNodeID);
-    //         } else {
-    //           const elID = path.scope.generateUidIdentifier("el");
-    //           where.insertBefore(
-    //             variableDeclaration("const", [
-    //               variableDeclarator(elID, child.expression),
-    //             ])
-    //           );
-    //           frag.append(elID);
-
-    //           if (child.expression.type === "ConditionalExpression") {
-    //             const { test } = child.expression;
-
-    //             const visitIdentifier = (idPath) => {
-    //               const nodeEl = path.scope.generateUidIdentifier("nodeEl");
-
-    //               where.insertBefore(
-    //                 variableDeclaration("const", [
-    //                   variableDeclarator(
-    //                     nodeEl,
-    //                     memberExpression(fragID, identifier("lastChild"))
-    //                   ),
-    //                 ])
-    //               );
-    //               const methodCall = callExpression(
-    //                 memberExpression(nodeEl, identifier("replaceWith")),
-    //                 [child.expression]
-    //               );
-    //               const binding = idPath.scope.getBinding(idPath.node.name);
-    //               if (binding?.identifier?.extra?.reactive) {
-    //                 const trigger = arrowFunctionExpression(
-    //                   [],
-    //                   blockStatement([expressionStatement(methodCall)])
-    //                 );
-
-    //                 binding.identifier.extra = {
-    //                   ...binding.identifier.extra,
-    //                   skipReactiveGetter: true,
-    //                 };
-
-    //                 const registerTrigger = expressionStatement(
-    //                   callExpression(
-    //                     memberExpression(
-    //                       binding.identifier,
-    //                       identifier("register")
-    //                     ),
-    //                     [trigger]
-    //                   )
-    //                 );
-
-    //                 where.insertBefore(registerTrigger);
-    //               }
-    //             };
-
-    //             if (test.type === "Identifier") {
-    //               // direct case
-    //               visitIdentifier({ node: test, scope: path.scope });
-    //             } else {
-    //               // complex expressions (Binary, Logical, Call, etc.)
-    //               path.scope.traverse(test, {
-    //                 Identifier: visitIdentifier,
-    //               });
-    //             }
-    //           }
-    //         }
-    //       }
-    //     });
-
-    //     where.insertBefore(
-    //       callExpression(memberExpression(el, identifier("append")), [fragID])
-    //     );
-    //     path.replaceWith(el);
-    //     path.skip();
-    //     return el;
-    //   };
-    //   handler(path.node);
-    // },
     ObjectProperty(path) {
       visitor.ObjectProperty(path);
     },
     VariableDeclaration(path) {
       visitor.VariableDeclaration(path);
+    },
+    /** @argument {NodePath<JSXElement>} path*/
+    JSXElement: {
+      enter(path) {
+        visitor.JSXElement.enter(path);
+      },
+      exit(path) {
+        visitor.JSXElement.exit(path);
+      },
+    },
+    FunctionDeclaration(path) {
+      if (path.parent.type !== "VariableDeclarator") return;
+      path.traverse(markeComputedFunctions(path));
+    },
+
+    ArrowFunctionExpression(path) {
+      if (path.parent.type !== "VariableDeclarator") return;
+      path.traverse(markeComputedFunctions(path));
     },
   };
 }

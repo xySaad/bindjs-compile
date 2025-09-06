@@ -1,5 +1,5 @@
 import { NodePath } from "@babel/traverse";
-import t from "@babel/types";
+import t, { functionDeclaration, returnStatement } from "@babel/types";
 import {
   arrowFunctionExpression,
   assignmentExpression,
@@ -11,79 +11,78 @@ import {
   stringLiteral,
   variableDeclaration,
   variableDeclarator,
+  JSXElement,
+  VariableDeclaration,
+  Identifier,
+  JSXAttribute,
+  JSXSpreadAttribute,
+  toIdentifier,
+  JSXEmptyExpression,
 } from "@babel/types";
+import {
+  getReactiveKind,
+  getRefStatementsFromExpression,
+  register,
+} from "./ref.js";
 
-/** @param {NodePath<t.JSXElement>} node */
-export const createElement = (node) => {
-  const tag = node.openingElement.name.name;
-
+/** @param {Identifier} varID
+ * @param {string} tag
+ * @returns {VariableDeclaration} */
+export const createElement = (varID, tag) => {
   // document.createElement(tag)
   const methodCall = callExpression(
     memberExpression(identifier("document"), identifier("createElement")),
     [stringLiteral(tag)]
   );
-
-  return methodCall;
+  return variableDeclaration("const", [variableDeclarator(varID, methodCall)]);
 };
-export const setAttribute = (el, attr, path) => {
-  const name = attr.name.name;
-  let value = attr.value;
 
-  // Normalize JSXExpressionContainer
-  if (value?.type === "JSXExpressionContainer") {
-    value = value.expression;
-  }
+/** @param {Identifier} varID
+ * @param {(JSXAttribute | JSXSpreadAttribute)[]} attributes
+ * @param {NodePath<JSXElement>} path
+ * @returns {void} */
 
-  // Initial setter: _el.setAttribute("name", value)
-  const method = memberExpression(el, identifier("setAttribute"));
-  let methodCall = callExpression(method, [stringLiteral(name), value]);
-  if (name.startsWith("on")) {
-    methodCall = assignmentExpression(
-      "=",
-      memberExpression(el, identifier(name)),
-      value
-    );
-  }
-  // Helper function to create and register a trigger
-  const registerReactiveTrigger = (binding) => {
-    const trigger = arrowFunctionExpression(
-      [],
-      blockStatement([expressionStatement(methodCall)])
-    );
-    binding.identifier.extra = {
-      ...binding.identifier.extra,
-      skipReactiveGetter: true,
-    };
-    const registerTrigger = expressionStatement(
-      callExpression(
-        memberExpression(binding.identifier, identifier("register")),
-        [trigger]
-      )
-    );
+export const setAttributes = (path, varID, attributes) => {
+  const statements = [];
 
-    path.insertBefore(registerTrigger);
-  };
+  for (const attr of attributes) {
+    //TODO: handle JSXSpreadAttribute
+    if (attr.type === "JSXSpreadAttribute")
+      throw new Error(`attribute type ${attr.type} unimplemented`);
+    const { name, value } = attr;
+    if (name.type === "JSXNamespacedName")
+      throw new Error(`attributeName type ${name.type} unimplemented`);
 
-  // Check if the value is a single reactive identifier
-  if (value?.type === "Identifier") {
-    const binding = path.scope.getBinding(value.name);
-    if (binding?.identifier?.extra?.reactive) {
-      registerReactiveTrigger(binding);
+    let normalizedValue = null;
+
+    const methodCall = () =>
+      callExpression(memberExpression(varID, identifier("setAttribute")), [
+        stringLiteral(name.name),
+        normalizedValue,
+      ]);
+
+    if (value.type === "StringLiteral") {
+      normalizedValue = value;
+    } else if (value.type === "JSXExpressionContainer") {
+      normalizedValue = value.expression;
+      statements.push(
+        ...getRefStatementsFromExpression(
+          normalizedValue,
+          value,
+          path.scope,
+          methodCall
+        )
+      );
+    } else {
+      console.error("attributeValue: ", value);
+      throw new Error(`attributeValue type ${value.type} unimplemented`);
     }
-  } else if (value.type === "ConditionalExpression") {
-    // Handle complex expressions by traversing for reactive identifiers
-    path.scope.traverse(value, {
-      Identifier(idPath) {
-        const binding = idPath.scope.getBinding(idPath.node.name);
-        if (binding?.identifier?.extra?.reactive) {
-          registerReactiveTrigger(binding);
-        }
-      },
-    });
-  }
 
-  return methodCall;
+    statements.push(methodCall());
+  }
+  return statements;
 };
+
 export const createFragment = (where, varID) => {
   const methodCall = callExpression(
     memberExpression(

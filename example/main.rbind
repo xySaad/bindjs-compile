@@ -1,12 +1,21 @@
 ref count = 0;
 
-const inc = () => count++;
-const dec = () => count--;
+const pow2 = ()=>{ 
+  const result = count * count;
+  return result
+}
+const calculate = (operation) => {
+  return operation()
+};
 
-export const Counter = () => (
-  <div class="counter">
-    <h1>{count}</h1>
-    <button onClick={inc}>+</button>
-    <button onClick={dec}>-</button>
-  </div>
-);
+export const Counter = () => {
+  return (
+    <div class={count > 10 ? "counter big" : "count"}>
+      <h1>{count}</h1>
+      <div class="double" data-double={pow2()}></div>
+      <button onClick={inc}>+</button>
+      <button onClick={dec}>-</button>
+    </div>
+  );
+};
+a;
