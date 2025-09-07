@@ -19,11 +19,7 @@ import {
   toIdentifier,
   JSXEmptyExpression,
 } from "@babel/types";
-import {
-  getReactiveKind,
-  getRefStatementsFromExpression,
-  register,
-} from "./ref.js";
+import { getReactiveKind, trackRefs, register } from "./ref.js";
 
 /** @param {Identifier} varID
  * @param {string} tag
@@ -66,12 +62,7 @@ export const setAttributes = (path, varID, attributes) => {
     } else if (value.type === "JSXExpressionContainer") {
       normalizedValue = value.expression;
       statements.push(
-        ...getRefStatementsFromExpression(
-          normalizedValue,
-          value,
-          path.scope,
-          methodCall
-        )
+        ...trackRefs(normalizedValue, value, path.scope, methodCall)
       );
     } else {
       console.error("attributeValue: ", value);
@@ -103,6 +94,7 @@ export const createFragment = (where, varID) => {
     },
   };
 };
+/**@deprecated */
 export const createTextNode = (where, varID, text) => {
   const methodCall = callExpression(
     memberExpression(identifier("document"), identifier("createTextNode")),

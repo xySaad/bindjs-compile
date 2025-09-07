@@ -1,0 +1,12 @@
+ref count = 0;
+
+export const getCount = () => {
+  return count;
+};
+
+export const double = ()=>{
+    return count*2
+}
+export const setCount = (x)=>{
+    count = x
+}

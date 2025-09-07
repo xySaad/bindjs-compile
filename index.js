@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "fs";
-import { extname, join, dirname, basename } from "path";
+import { extname, join, dirname, basename, resolve } from "path";
 import * as glob from "glob";
 import * as mkdirp from "mkdirp";
 import parse from "./src/parser.js";
@@ -43,8 +43,9 @@ async function compile() {
     console.log(`Found ${files.length} files in ${inputDir}`);
   }
 
+  const moduleGraph = new Map();
   for (const relativeFile of files) {
-    const inputPath = join(inputDir, relativeFile);
+    const inputPath = resolve(inputDir, relativeFile);
     const baseName = basename(relativeFile, extname(relativeFile)) + ".js";
     const outputPath = join(outputDir, dirname(relativeFile), baseName);
 
@@ -61,8 +62,9 @@ async function compile() {
       console.error(`Parse error in ${inputPath}:`, err.message);
       continue;
     }
-
-    traverse(ast, visitor());
+    const refsMap = new Map();
+    moduleGraph.set(inputPath, refsMap);
+    traverse(ast, visitor(inputPath, moduleGraph));
 
     ensureDir(outputPath);
     if (verbose) console.log(`Writing: ${outputPath}`);

@@ -1,21 +1,16 @@
-ref count = 0;
+import { getCount, double, setCount } from "./states.rbind";
 
-const pow2 = ()=>{ 
-  const result = count * count;
-  return result
-}
 const calculate = (operation) => {
-  return operation()
+  return operation();
 };
 
 export const Counter = () => {
   return (
-    <div class={count > 10 ? "counter big" : "count"}>
-      <h1>{count}</h1>
-      <div class="double" data-double={pow2()}></div>
-      <button onClick={inc}>+</button>
-      <button onClick={dec}>-</button>
+    <div class={getCount() > 10 ? "counter big" : "count"}>
+      <h1>{getCount()}</h1>
+      <div class="double" data-double={calculate(double)}></div>
+      <button onClick={() => setCount(getCount() + 1)}>+</button>
+      <button onClick={() => setCount(getCount() - 1)}>-</button>
     </div>
   );
 };
-a;

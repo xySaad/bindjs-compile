@@ -1,33 +1,23 @@
-import {
-  arrowFunctionExpression,
-  blockStatement,
-  callExpression,
-  expressionStatement,
-  identifier,
-  importDeclaration,
-  importSpecifier,
-  memberExpression,
-  stringLiteral,
-  variableDeclaration,
-  VariableDeclaration,
-  variableDeclarator,
-  ObjectProperty,
-  Program,
-  Identifier,
-  VariableDeclarator,
-  JSXElement,
-  nullLiteral,
-} from "@babel/types";
+import { dirname, join, resolve } from "path";
 import { NodePath } from "@babel/traverse";
 import {
-  createElement,
-  createFragment,
-  createTextNode,
-  setAttributes,
-} from "./jsx.js";
-import html from "./html.js";
-import { scope } from "@babel/traverse/lib/cache.js";
-import { getReactiveKind, markeComputedFunctions } from "./ref.js";
+  callExpression,
+  exportNamedDeclaration,
+  identifier,
+  Identifier,
+  importDeclaration,
+  importSpecifier,
+  JSXElement,
+  memberExpression,
+  ObjectProperty,
+  Program,
+  stringLiteral,
+  VariableDeclaration,
+  VariableDeclarator,
+} from "@babel/types";
+import t from "@babel/types";
+import { createElement, setAttributes } from "./jsx.js";
+import { getReactiveKind, markComputedFunctions } from "./ref.js";
 export class RbindVisitor {
   refPrefix = "ref$";
   refImports = { list: false, state: false };
@@ -52,7 +42,7 @@ export class RbindVisitor {
     },
   };
 
-  /** @argument {NodePath<VariableDeclaration>} */
+  /** @argument {NodePath<VariableDeclaration>} path*/
   VariableDeclaration(path) {
     const { kind, declarations } = path.node;
     if (kind !== "ref") return;
@@ -214,11 +204,36 @@ export class RbindVisitor {
     },
   };
 }
-
-export default function () {
+/**
+ *
+ * @param {Map<string, Map<string, any>} moduleGraph
+ * @returns {import("@babel/traverse").Visitor}
+ */
+export default function (inputPath, moduleGraph) {
   const visitor = new RbindVisitor();
+  const moduleMeta = moduleGraph.get(inputPath);
   return {
     Program: visitor.Program,
+    ImportDeclaration(path) {
+      path.node.specifiers;
+      const { source, specifiers } = path.node;
+      const currentFile = inputPath;
+      const currentDir = dirname(currentFile);
+      const resolvedPath = join(currentDir, source.value);
+      const refImports = moduleGraph.get(resolvedPath);
+      if (!refImports) return;
+
+      for (const spec of specifiers) {
+        if (spec.type !== "ImportSpecifier")
+          throw Error(`${spec.type} not implemented`);
+        const ref = refImports.get(spec.imported.name);
+        if (!ref) return;
+
+        if (ref.computed) {
+          console.log(ref);
+        }
+      }
+    },
     Identifier(path) {
       visitor.Identifier(path);
     },
@@ -239,12 +254,29 @@ export default function () {
     },
     FunctionDeclaration(path) {
       if (path.parent.type !== "VariableDeclarator") return;
-      path.traverse(markeComputedFunctions(path));
+      path.traverse(markComputedFunctions(path));
     },
 
     ArrowFunctionExpression(path) {
       if (path.parent.type !== "VariableDeclarator") return;
-      path.traverse(markeComputedFunctions(path));
+      path.traverse(markComputedFunctions(path));
+      const { extra, name } = path.parent.id;
+      const computed = extra?.computed;
+      if (!computed) return;
+      if (path.parentPath.parentPath.parent.type !== "ExportNamedDeclaration")
+        return;
+
+      moduleMeta.set(name, extra);
+
+      // moduleMeta.set(path.node.na)
+      // export refs used in exported computed functions
+      for (const dep of computed.set) {
+        if (dep.path.parentPath.parent.type !== "ExportNamedDeclaration") {
+          dep.path.parentPath.replaceWith(
+            exportNamedDeclaration(dep.path.parent)
+          );
+        }
+      }
     },
   };
 }
